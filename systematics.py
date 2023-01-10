@@ -1,16 +1,8 @@
-from pprint import pprint
-
 import cabinetry
-import hist
-import matplotlib
 import matplotlib.pyplot as plt
-import mplhep
 import numpy as np
-import pyhf
 import utils
-from hist import Hist
-from IPython.display import Image, display
-from pyhf.contrib.viz import brazil
+from IPython.display import Image
 from tabulate import tabulate
 from tqdm import tqdm
 from uncertainties import unumpy
@@ -128,7 +120,7 @@ _ = utils.fit_model(uncorr_model, list(mod_data) + uncorr_data[uncorr_model.conf
 # toy study with both models
 # what if we model the correlated shape as uncorrelated and vice versa?
 
-n_toys = 100
+n_toys = 50
 toy_mu = 1.0
 minos = False
 results = {}
@@ -190,9 +182,6 @@ for corr_type, res in results.items():
     utils.fit_pull(np.array(res)[:, 4], show_bins=20, xlabel=f'pull ({corr_type})')
     plt.show()
 
-# %%
-
-# %%
 # %% markdown
 # - it is important to model all systematic variations and their correlation correctly, not easy to test this
 # - we can only test this here because we have the underlying model, this is usually not available
@@ -202,6 +191,7 @@ for corr_type, res in results.items():
 # ### splitting uncertainty on POI by systeamtic source
 # %%
 
+np.random.seed(42)
 model_dict = cabinetry.workspace.load("workspace.json")
 model, data = cabinetry.model_utils.model_and_data(model_dict)
 

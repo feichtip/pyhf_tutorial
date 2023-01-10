@@ -1,18 +1,12 @@
-import json
-from pprint import pprint
-
 import cabinetry
 import hist
-import matplotlib
 import matplotlib.pyplot as plt
-import mplhep
 import numpy as np
 import pyhf
 import utils
 from hist import Hist
-from IPython.display import Image, display
+from IPython.display import Image
 from pyhf.contrib.viz import brazil
-from tabulate import tabulate
 from tqdm import tqdm
 
 np.random.seed(1010)
@@ -105,16 +99,15 @@ pyhf.set_backend('jax')
 # this will also sample auxdata from the constraint terms
 # it is important to include this, since we want to sample from our whole model with all systematic variations
 
-n_toys = 1_000
+np.random.seed(42)
+
+n_toys = 100
 pars = model.config.suggested_init()
-pars[model.config.poi_index] = 1.2
-# pars
+# pars[model.config.poi_index] = 1.0
 toys = model.make_pdf(pyhf.tensorlib.astensor(pars)).sample((n_toys,))
 toys[0]
 
 # %%
-
-np.random.seed(12)
 
 bestfits = []
 uncertainties = []

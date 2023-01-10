@@ -5,13 +5,11 @@ from pprint import pprint
 import cabinetry
 import hist
 import iminuit
-import matplotlib
 import matplotlib.pyplot as plt
 import mplhep
 import numpy as np
 import pyhf
 from hist import Hist
-from scipy import stats
 from tabulate import tabulate
 
 # matplotlib.rcParams['figure.figsize'] = [12.0, 8.0]
@@ -20,10 +18,10 @@ from tabulate import tabulate
 
 np.random.seed(1010)
 
-print(f'{iminuit.__version__=}')
-print(f'{pyhf.__version__=}')
-print(f'{cabinetry.__version__=}')
-print(f'{python_version()=}')
+print(f'{iminuit.__version__=}')  # 2.18.0
+print(f'{pyhf.__version__=}')  # 0.7.0
+print(f'{cabinetry.__version__=}')  # 0.5.1
+print(f'{python_version()=}')  # 3.8.10
 
 # %% markdown
 # - pyhf
@@ -181,12 +179,12 @@ pprint(model_dict)
 
 # %%
 # pyhf also has a command line interface
-! pyhf
+# ! pyhf
 
 # %%
 
 
-! pyhf inspect workspace.json
+# ! pyhf inspect workspace.json
 
 # %% markdown
 
