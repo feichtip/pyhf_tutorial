@@ -243,12 +243,6 @@
                         "name": "inv_BF_2"
                     },
                     {
-                        "inits": [
-                            0.25
-                        ],
-                        "name": "BF_2"
-                    },
-                    {
                         "bounds": [
                             [
                                 0,
@@ -259,6 +253,12 @@
                             2.0
                         ],
                         "name": "ratio"
+                    },
+                    {
+                        "inits": [
+                            0.25
+                        ],
+                        "name": "BF_2"
                     }
                 ],
                 "poi": "ratio"

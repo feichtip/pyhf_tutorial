@@ -72,8 +72,11 @@ bkg_data = model_dict['channels'][0]['samples'][1]['data']
 abs_uncrt = np.linspace(-0.1, 0.35, len(bkg_data)) * bkg_data
 
 # construct a covariance matrix
-cov = abs_uncrt[np.newaxis].T * abs_uncrt  # 100% correlated
-# cov = np.diag(abs_uncrt)**2  # 100% uncorrelated
+fill_val = 0.5  # off-diagonal elements in correlation matrix
+# fill_val = 0.0  # completely independent
+# fill_val = 1.0  # 100% correlated
+corr = np.identity(len(abs_uncrt)) * (1 - fill_val) + np.full((len(abs_uncrt), len(abs_uncrt)), fill_val)
+cov = np.diag(abs_uncrt) @ corr @ np.diag(abs_uncrt)
 
 plt.imshow(cov, origin='lower')
 plt.xlabel('bin')
@@ -190,24 +193,20 @@ for corr_type, res in results.items():
 # %% markdown
 # - it is important to model all systematic variations and their correlation correctly, but not easy to validate that this is the case
 # - we can only test this here because we have the underlying model, this is usually not available
+# - goodness of fit can give some indication whether the model is good, but can also be misleading (also a bad model can have a good fit)
 # - if we sample from our model we already assume that correlations/systematics are correct!
+# - 100% correlated or independent are only the extreme cases, usually there will be a partial correlation
+# - no model can perfectly describe reality, there is always a certain degree of approximation
 #
 # %% markdown
 
 # ## how to model any arbitrary correlation
 # - we can model any covariance matrix with multiple, independent nuisance parameters, using correlated shape variations (histosys)
-# - https://indico.cern.ch/event/1051224/contributions/4534929/
-# %%
-
-fill_val = 0.5  # off-diagonal elements in correlation matrix
-corr = np.identity(len(abs_uncrt)) * (1 - fill_val) + np.full((len(abs_uncrt), len(abs_uncrt)), fill_val)
-cov = np.diag(abs_uncrt) @ corr @ np.diag(abs_uncrt)
-
-# sample from multivariate gauss using the covariance matrix
-np.random.seed(80)
-mod_data = np.random.multivariate_normal(mean=data[:model.config.nmaindata], cov=cov)
+# - this is done by decomposing the covariance matrix into eigenvectors and eigenvalues
+# - for more details see https://indico.cern.ch/event/1051224/contributions/4534929/
 
 # %%
+
 
 # covariance -> correlated shape variations
 utils.plot_corr(cov)
@@ -244,28 +243,22 @@ for i, abs_var in enumerate(gamma.T):
 part_model, part_data = cabinetry.model_utils.model_and_data(part_model_dict)
 _ = utils.fit_model(part_model, list(mod_data) + part_data[model.config.nmaindata:], goodness_of_fit=True)
 
-# %%
-# %%
-
 # %% markdown
 # ### splitting uncertainty on POI by systeamtic source
 # %%
 
-np.random.seed(42)
-model_dict = cabinetry.workspace.load("workspace.json")
-model, data = cabinetry.model_utils.model_and_data(model_dict)
 
-
-# %%
-
-utils.bestfit_toy_valid(model, sys_name='all', n_toys=500)
+# returns the uncertainty on mu, estimated with toys
+utils.bestfit_toy_valid(part_model, sys_name='all', n_toys=500)
 
 # %%
 
 sys_uncrt = {}
 sys_names = ['bkg_shape', 'bkg_norm', 'sig_stat_error', 'bkg_stat_error', 'data_stat_error']
 for sys_name in sys_names:
-    sys_uncrt[sys_name] = utils.bestfit_toy_valid(model, sys_name=sys_name)
+    # uncertainty on mu when only varying a single systematic source
+    print(f'estimating uncertainty associated to {sys_name}')
+    sys_uncrt[sys_name] = utils.bestfit_toy_valid(part_model, sys_name=sys_name)
 
 # %%
 
@@ -276,10 +269,13 @@ print(f'quadrature sum: {unumpy.sqrt(np.sum([uncrt**2 for uncrt in sys_uncrt.val
 # %%
 # %%
 
-# # parabula only for bkg norm, bc of 1 parameter with gaussian constraint ?
+# # parabula only for bkg norm, bc of 1 parameter with gaussian constraint
 # toy_results = utils.bestfit_toy_valid(model, sys_name='all', n_toys=500, return_results=True)
 # toy_results = utils.bestfit_toy_valid(model, sys_name='bkg_norm', n_toys=500, return_results=True)
 # x_nll = np.array([[toy_result.x[model.config.poi_index], toy_result.fun] for toy_result in toy_results])
 # plt.plot(*x_nll.T, marker='.', ls='')
+# plt.show()
 # plt.hist(x_nll[:, 0], bins=50)
+# plt.show()
 # plt.hist(x_nll[:, 1], bins=50)
+# plt.show()

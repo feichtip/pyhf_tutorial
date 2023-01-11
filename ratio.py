@@ -1,19 +1,12 @@
-from platform import python_version
-from pprint import pprint
-
 import cabinetry
 import hist
-import iminuit
-import jax
 import matplotlib
 import matplotlib.pyplot as plt
 import mplhep
 import numpy as np
-import pyhf
 import uncertainties
 import utils
 from hist import Hist
-from tabulate import tabulate
 
 matplotlib.rcParams['figure.figsize'] = [8.0, 6.0]
 matplotlib.rcParams['font.size'] = 14
@@ -96,6 +89,13 @@ fit_results = utils.fit_model(model, data, goodness_of_fit=True)
 
 print(f'correlation mu, mu2: {fit_results.corr_mat[fit_results.labels.index("mu"), fit_results.labels.index("mu_2")]:.3f}')
 
+# %% markdown
+# ### fit BF/cross section instead of signal strenght
+# - just need to apply a scaling factor to the templates
+# - signal strenght of 1 would correspond to measuring the same BF as is in the generator
+# - for this toy example:
+# - signal in channel_1: BF=0.5
+# - signal in channel_2: BF=0.25
 # %%
 
 model_dict = cabinetry.workspace.load("workspace_2channel.json")
@@ -129,6 +129,7 @@ par_estimates = [(fit_results.bestfit[fit_results.labels.index(par_name)],
                  for par_name in ['BF_1', 'BF_2']]
 
 # %%
+# now we can compute the ratio of the fitted branching fractions, taking into account their correlation
 
 print('\ntaking into account correlation between fitted parameters')
 bf1_i = fit_results.labels.index('BF_1')
@@ -145,26 +146,20 @@ print(f'ratio={bf1 / bf2:.3}')
 
 # %%
 
+# or we can also fit the ratio directly
 
-model_dict = cabinetry.workspace.load("workspace_2channel.json")
+model_dict = cabinetry.workspace.load("workspace_bf.json")
 
 parameters = model_dict['measurements'][0]['config']['parameters']
 
-parameters.append({"name": "inv_BF_1", "inits": [1 / 0.5], "fixed": True})
-parameters.append({"name": "inv_BF_2", "inits": [1 / 0.25], "fixed": True})
-parameters.append({"name": "BF_2", "inits": [0.25]})
-parameters.append({"name": "ratio", "inits": [2.0], "bounds": [[0, 20]]})
-
+# replace BF_1 with ratio
+parameters[2] = {"name": "ratio", "inits": [2.0], "bounds": [[0, 20]]}
 model_dict['measurements'][0]['config']['poi'] = 'ratio'
-model_dict['channels'][0]['samples'][0]['modifiers'][0]['name'] = 'ratio'  # normfactor
-model_dict['channels'][1]['samples'][0]['modifiers'][0]['name'] = 'BF_2'  # normfactor
+model_dict['channels'][0]['samples'][0]['modifiers'][0]['name'] = 'ratio'
 
+# multiply BF_2 to channel_1 signal normalisation, then we measure directly BF_1 / BF_2
 model_dict['channels'][0]['samples'][0]['modifiers'].append(
-    {"name": "inv_BF_1", "type": "normfactor", "data": None})  # fixed normfactor
-model_dict['channels'][1]['samples'][0]['modifiers'].append(
-    {"name": "inv_BF_2", "type": "normfactor", "data": None})  # fixed normfactor
-model_dict['channels'][0]['samples'][0]['modifiers'].append(
-    {"name": "BF_2", "type": "normfactor", "data": None})  # multiply BF_2 to channel_1 signal normalisation
+    {"name": "BF_2", "type": "normfactor", "data": None})
 
 utils.save_model(model_dict, 'workspace_ratio')
 
