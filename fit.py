@@ -1,5 +1,6 @@
 import cabinetry
 import hist
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pyhf
@@ -8,6 +9,10 @@ from hist import Hist
 from IPython.display import Image
 from pyhf.contrib.viz import brazil
 from tqdm import tqdm
+
+matplotlib.rcParams['figure.figsize'] = [8.0, 6.0]
+matplotlib.rcParams['font.size'] = 14
+matplotlib.rcParams['axes.labelsize'] = 'large'
 
 np.random.seed(1010)
 
@@ -170,5 +175,12 @@ brazil.plot_results(poi_vals, results, ax=ax)
 plt.show()
 
 # %%
+
+# calculate upper limit with interpolation
+observed = np.asarray([h[0] for h in results]).ravel()
+expected = np.asarray([h[1][2] for h in results]).ravel()
+print(f"Upper limit (obs): μ = {np.interp(0.05, observed[::-1], poi_vals[::-1]):.4f}")
+print(f"Upper limit (exp): μ = {np.interp(0.05, expected[::-1], poi_vals[::-1]):.4f}")
+
 # %%
 # %%

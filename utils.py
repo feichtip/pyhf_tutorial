@@ -1,3 +1,5 @@
+import json
+
 import cabinetry
 import iminuit
 import matplotlib.pyplot as plt
@@ -188,3 +190,28 @@ def fit_pull(datos, x0=[0, 1], show_bins=40, show=True, xlabel='pull'):
         # plt.xlim(-4, 4)
 
     return np.array([mu, mu_unc]), np.array([sigma, sigma_unc])
+
+
+def plot_corr(covMatrix):
+    plt.imshow(correlation_from_covariance(covMatrix), origin='lower')
+    plt.xlabel('bin number')
+    plt.ylabel('bin number')
+    plt.xticks(range(covMatrix.shape[0]), range(1, covMatrix.shape[0] + 1))
+    plt.yticks(range(covMatrix.shape[0]), range(1, covMatrix.shape[0] + 1))
+    plt.tick_params(which='both', top=False, bottom=False, left=False, right=False)
+
+
+def correlation_from_covariance(covariance):
+    v = np.sqrt(np.diag(covariance))
+    outer_v = np.outer(v, v)
+    correlation = covariance / outer_v
+    correlation[covariance == 0] = 0
+    return correlation
+
+
+def save_model(model_dict, name):
+    # save model dict as json
+    pyhf.schema.validate(model_dict, 'workspace.json')
+    model_string = json.dumps(model_dict, sort_keys=True, indent=4)
+    with open(f'{name}.json', 'w') as outfile:
+        outfile.write(model_string)

@@ -5,6 +5,8 @@ from pprint import pprint
 import cabinetry
 import hist
 import iminuit
+import jax
+import matplotlib
 import matplotlib.pyplot as plt
 import mplhep
 import numpy as np
@@ -12,16 +14,20 @@ import pyhf
 from hist import Hist
 from tabulate import tabulate
 
-# matplotlib.rcParams['figure.figsize'] = [12.0, 8.0]
-# matplotlib.rcParams['font.size'] = 14
-# matplotlib.rcParams['axes.labelsize'] = 'large'
+matplotlib.rcParams['figure.figsize'] = [8.0, 6.0]
+matplotlib.rcParams['font.size'] = 14
+matplotlib.rcParams['axes.labelsize'] = 'large'
 
 np.random.seed(1010)
 
-print(f'{iminuit.__version__=}')  # 2.18.0
-print(f'{pyhf.__version__=}')  # 0.7.0
-print(f'{cabinetry.__version__=}')  # 0.5.1
-print(f'{python_version()=}')  # 3.8.10
+
+print(f'{iminuit.__version__ = }')  # 2.18.0
+print(f'{pyhf.__version__ = }')  # 0.7.0
+print(f'{cabinetry.__version__ = }')  # 0.5.1
+print(f'{hist.__version__ = }')  # 2.6.1
+print(f'{jax.__version__ = }')  # 0.3.6
+print(f'{np.__version__ = }')  # 1.21.5
+print(f'{python_version() = }')  # 3.8.10
 
 # %% markdown
 # - pyhf
@@ -63,7 +69,7 @@ h_sig = Hist(ax, storage=hist.storage.Weight()).fill(sig, weight=0.1)
 h_sig.variances()[h_sig.values() == 0] = 1E-6
 h_sig.values()[h_sig.values() == 0] = 1E-4
 
-# show our toy MC, not the statistical uncertainty for singal and background
+# show our toy MC, note the statistical uncertainty for singal and background
 mplhep.histplot([h_bkg, h_sig], label=['background', 'signal'], stack=True)
 plt.legend()
 plt.show()
@@ -111,7 +117,7 @@ def create_model(h_sig, h_bkg, h_data, bkg_norm='normsys', save=False):
      'measurements': [{'config': {'parameters': [], 'poi': 'mu'},
                        'name': 'Measurement'}],
      'observations': [{'data': [...],
-                       'name': 'channel_1'}],
+                       'name': 'channel_name'}],
      'version': '1.0.0'}
     """
 
@@ -174,6 +180,7 @@ def create_model(h_sig, h_bkg, h_data, bkg_norm='normsys', save=False):
 # in 'measurements' -> 'config' -> 'parameters' we could set inital values of the parameters,
 # which would be our SM expectation, e.g. {"name": "mu", "inits": [2.0]}
 model_dict = create_model(h_sig, h_bkg, h_data, bkg_norm='normsys', save=True)
+
 pprint(model_dict)
 
 
@@ -182,7 +189,6 @@ pprint(model_dict)
 # ! pyhf
 
 # %%
-
 
 # ! pyhf inspect workspace.json
 
@@ -224,7 +230,8 @@ pyhf.set_backend('jax', 'minuit')
 # model_dict = cabinetry.workspace.load("workspace.json")  # from json file
 model, data = cabinetry.model_utils.model_and_data(model_dict)  # use python dict directly
 
-
+model
+data
 # %%
 
 # simple fit with cabinetry api, run MINOS for parameter of interest mu
@@ -251,7 +258,7 @@ model.config.par_names
 par_estimates, results = pyhf.infer.mle.fit(data, model, return_result_obj=True, return_uncertainties=True)
 print(tabulate([(par, par_estimates[model.config.par_map[par]['slice']]) for par in model.config.par_order]))
 
-results.minuit.fmin
+# results.minuit.fmin
 # results.minuit.params
 # results.minuit.covariance
 

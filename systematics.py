@@ -1,4 +1,5 @@
 import cabinetry
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import utils
@@ -6,6 +7,10 @@ from IPython.display import Image
 from tabulate import tabulate
 from tqdm import tqdm
 from uncertainties import unumpy
+
+matplotlib.rcParams['figure.figsize'] = [8.0, 6.0]
+matplotlib.rcParams['font.size'] = 14
+matplotlib.rcParams['axes.labelsize'] = 'large'
 
 np.random.seed(1010)
 
@@ -183,10 +188,65 @@ for corr_type, res in results.items():
     plt.show()
 
 # %% markdown
-# - it is important to model all systematic variations and their correlation correctly, not easy to test this
+# - it is important to model all systematic variations and their correlation correctly, but not easy to validate that this is the case
 # - we can only test this here because we have the underlying model, this is usually not available
 # - if we sample from our model we already assume that correlations/systematics are correct!
 #
+# %% markdown
+
+# ## how to model any arbitrary correlation
+# - we can model any covariance matrix with multiple, independent nuisance parameters, using correlated shape variations (histosys)
+# - https://indico.cern.ch/event/1051224/contributions/4534929/
+# %%
+
+fill_val = 0.5  # off-diagonal elements in correlation matrix
+corr = np.identity(len(abs_uncrt)) * (1 - fill_val) + np.full((len(abs_uncrt), len(abs_uncrt)), fill_val)
+cov = np.diag(abs_uncrt) @ corr @ np.diag(abs_uncrt)
+
+# sample from multivariate gauss using the covariance matrix
+np.random.seed(80)
+mod_data = np.random.multivariate_normal(mean=data[:model.config.nmaindata], cov=cov)
+
+# %%
+
+# covariance -> correlated shape variations
+utils.plot_corr(cov)
+plt.show()
+
+e_val, e_vec = np.linalg.eigh(cov)
+n_Eval_before = len(e_val)
+
+to_keep = e_val > 1
+n_Eval_keep = to_keep.sum()
+
+print(f'remaining eigenvalues: {n_Eval_keep}/{n_Eval_before}')
+e_val = e_val[to_keep]
+e_vec = e_vec[:, to_keep]
+lamb = np.diag(e_val)
+
+gamma = (e_vec @ np.sqrt(lamb))
+covMat_rep = gamma @ gamma.T
+
+utils.plot_corr(covMat_rep)
+plt.title(f'using {n_Eval_keep}/{n_Eval_before} eigenvalues')
+plt.show()
+# %%
+
+# add correlated shapes as background modifier
+part_model_dict = cabinetry.workspace.load("workspace.json")
+for i, abs_var in enumerate(gamma.T):
+    plt.step(range(len(abs_var)), 1 + abs_var / bkg_data, where='mid')
+    part_model_dict['channels'][0]['samples'][1]['modifiers'].append({"name": f'corr_bkg_shape_{i}',
+                                                                      "type": "histosys",
+                                                                      "data": {"hi_data": list(bkg_data + abs_var),
+                                                                               "lo_data": list(bkg_data - abs_var)}
+                                                                      })
+part_model, part_data = cabinetry.model_utils.model_and_data(part_model_dict)
+_ = utils.fit_model(part_model, list(mod_data) + part_data[model.config.nmaindata:], goodness_of_fit=True)
+
+# %%
+# %%
+
 # %% markdown
 # ### splitting uncertainty on POI by systeamtic source
 # %%
@@ -212,15 +272,6 @@ for sys_name in sys_names:
 print(tabulate(sys_uncrt.items()))
 print(f'quadrature sum: {unumpy.sqrt(np.sum([uncrt**2 for uncrt in sys_uncrt.values()]))}')
 
-# %%
-# %% markdown
-
-# ## how to model any arbitrary correlation
-
-# %%
-
-
-# %%
 # %%
 # %%
 # %%
