@@ -21,6 +21,10 @@ np.random.seed(1010)
 
 # get model from before, with constrained background (normsys)
 model_dict = cabinetry.workspace.load("workspace.json")  # from json file
+
+parameters = model_dict['measurements'][0]['config']['parameters']
+parameters.append({"name": "bkg_norm", "inits": [0.0], "bounds": [[-15, 15]]})
+
 model, data = cabinetry.model_utils.model_and_data(model_dict)
 
 # fit and show pre/post-fit distributions
@@ -41,6 +45,15 @@ def sample_data(bkg_scale=1, sig_scale=1):
 
 
 sample_data(1, 1)
+
+# import scipy
+# bin_i = 14
+# axis = hist.axis.Regular(15, 0, 18)
+# expected = (scipy.stats.expon(scale=8).cdf(axis.edges[bin_i + 1]) - scipy.stats.expon(scale=8).cdf(axis.edges[bin_i])) * 5_000 * 1.1
+# bin0 = [sample_data(1.1, 1).values()[bin_i] for i in range(10_000)]
+# np.mean(bin0)
+# expected
+# plt.hist(bin0, bins=50)
 
 # %% markdown
 # ### data in pyhf
@@ -74,7 +87,7 @@ model.config.auxdata_order  # order of the modifiers corresponding to the auxdat
 # to fit our model to the sampled data we have to merge it first with the auxdata
 toy_data = list(sample_data(bkg_scale=1.0, sig_scale=1.0).values()) + model.config.auxdata
 
-# we can also fit our model to the expected data
+# we can also fit our model to the expected data (asimov data)
 # toy_data = model.expected_data(model.config.suggested_init())
 
 fit_results = utils.fit_model(model, toy_data)
@@ -83,7 +96,7 @@ fit_results = utils.fit_model(model, toy_data)
 # %% markdown
 # - we have a 2% uncertainty on the background normalisation in our model
 # - the fitted parameter ('bkg_norm') in this case corresponds to the 'pull' away from the expected normalisation (our nominal MC template)
-# - this is, how many standard deviations (in our case 1 sigma = 2%) does the fitted parameter deviate?
+# - this is, how many standard deviations of the given uncertainty (in our case 1 sigma = 2%) does the fitted parameter deviate?
 # - pull plot with cabinetry is currently bugged, only correct for gaussian constraints centered at 0
 # ---
 # how does the bkg level affect the fitted parameters?
@@ -91,26 +104,29 @@ fit_results = utils.fit_model(model, toy_data)
 
 cabinetry.visualize.pulls(fit_results, exclude=[par for par in model.config.par_names if 'stat' in par] + [model.config.poi_name], save_figure=False)
 
+# %% markdown
+# a more systematic way to study such effects is with a toy study where we perform the fit many times
+# - with pyhf we can easily sample data from our model
+# - this will also sample auxdata from the constraint terms
+# - it is important to include the sampled auxdata, since we want to sample from our whole model with all systematic variations
+# - with this we can just study the estimator within our model, the toy study does not give us any information of how good our model can describe reality
 # %%
-
-# a more systematic way to study this is with a toy study
 
 # pyhf.set_backend('numpy')
 pyhf.set_backend('jax')
-
-# %%
-
-# with pyhf we can easily sample data from our model
-# this will also sample auxdata from the constraint terms
-# it is important to include this, since we want to sample from our whole model with all systematic variations
 
 np.random.seed(42)
 
 n_toys = 100
 pars = model.config.suggested_init()
-# pars[model.config.poi_index] = 1.0
+true_mu = 1.0
+true_bkg_norm = 1  # 1->2%
+pars[model.config.par_slice('mu')] = [true_mu]
+pars[model.config.par_slice('bkg_norm')] = [true_bkg_norm]
 toys = model.make_pdf(pyhf.tensorlib.astensor(pars)).sample((n_toys,))
-toys[0]
+
+fit_results = utils.fit_model(model, toys[0])
+
 
 # %%
 
@@ -118,12 +134,7 @@ bestfits = []
 uncertainties = []
 
 for toy in tqdm(toys):
-    # toy_data = toy  # if we want to use the expected data from our model
-
-    # here we replace the maindata part of our toy with data sampled with our function, so we can change the underlying signal/background scale
-    toy_data = list(sample_data(bkg_scale=1.0, sig_scale=1.0).values()) + list(toy[model.config.nmaindata:])
-
-    fit_results = utils.fit_model(model, toy_data, verbose=False)
+    fit_results = utils.fit_model(model, toy, verbose=False)
     if fit_results:
         bestfits.append(fit_results.bestfit)
         uncertainties.append(fit_results.uncertainty)
@@ -133,9 +144,9 @@ uncertainties = np.array(uncertainties)
 
 # # %%
 
-for par_name in ['mu', 'bkg_norm']:
+for par_name, true_val in zip(['mu', 'bkg_norm'], [true_mu, true_bkg_norm]):
     par_slice = model.config.par_slice(par_name)
-    pull = (bestfits[:, par_slice] - model.config.suggested_init()[par_slice]) / uncertainties[:, par_slice]
+    pull = (bestfits[:, par_slice] - true_val) / uncertainties[:, par_slice]
     utils.fit_pull(pull, show_bins=20, xlabel=f'pull ({par_name})')
     plt.show()
     print(f'mean: {pull.mean():.4f}, std: {pull.std():.4f}')
