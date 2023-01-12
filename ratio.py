@@ -129,7 +129,7 @@ par_estimates = [(fit_results.bestfit[fit_results.labels.index(par_name)],
                  for par_name in ['BF_1', 'BF_2']]
 
 # %%
-# now we can compute the ratio of the fitted branching fractions, taking into account their correlation
+# now we can compute the ratio of the fitted branching fractions, taking into account their correlation because of the shared backgrond normalisation
 
 print('\ntaking into account correlation between fitted parameters')
 bf1_i = fit_results.labels.index('BF_1')

@@ -22,8 +22,9 @@ np.random.seed(1010)
 # get model from before, with constrained background (normsys)
 model_dict = cabinetry.workspace.load("workspace.json")  # from json file
 
-parameters = model_dict['measurements'][0]['config']['parameters']
-parameters.append({"name": "bkg_norm", "inits": [0.0], "bounds": [[-15, 15]]})
+# # this is how we could change the bounds of a parameter
+# parameters = model_dict['measurements'][0]['config']['parameters']
+# parameters.append({"name": "bkg_norm", "inits": [0.0], "bounds": [[-15, 15]]})
 
 model, data = cabinetry.model_utils.model_and_data(model_dict)
 
@@ -46,13 +47,15 @@ def sample_data(bkg_scale=1, sig_scale=1):
 
 sample_data(1, 1)
 
+# %%
+
 # import scipy
 # bin_i = 14
 # axis = hist.axis.Regular(15, 0, 18)
-# expected = (scipy.stats.expon(scale=8).cdf(axis.edges[bin_i + 1]) - scipy.stats.expon(scale=8).cdf(axis.edges[bin_i])) * 5_000 * 1.1
-# bin0 = [sample_data(1.1, 1).values()[bin_i] for i in range(10_000)]
-# np.mean(bin0)
-# expected
+# scale = 1.1
+# expected = (scipy.stats.expon(scale=8).cdf(axis.edges[bin_i + 1]) - scipy.stats.expon(scale=8).cdf(axis.edges[bin_i])) * 5_000 * scale
+# bin0 = [sample_data(scale, 1).values()[bin_i] for i in range(10_000)]
+# np.mean(bin0) - expected
 # plt.hist(bin0, bins=50)
 
 # %% markdown
@@ -120,7 +123,7 @@ np.random.seed(42)
 n_toys = 100
 pars = model.config.suggested_init()
 true_mu = 1.0
-true_bkg_norm = 1  # 1->2%
+true_bkg_norm = 0.0  # 1->+2%
 pars[model.config.par_slice('mu')] = [true_mu]
 pars[model.config.par_slice('bkg_norm')] = [true_bkg_norm]
 toys = model.make_pdf(pyhf.tensorlib.astensor(pars)).sample((n_toys,))
